@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # ========================================================================================
 # jmeter-ec2.sh
@@ -158,7 +158,9 @@ function runsetup() {
                     -t "$INSTANCE_TYPE" \
                     -g "$INSTANCE_SECURITYGROUP" \
                     -n 1-$instance_count \
-		            --region $REGION \
+                    --subnet $SUBNET \
+		            --associate-public-ip-address $ASSOCIATE_PUBLIC_IP \
+                    --region $REGION \
                     --availability-zone \
                     $INSTANCE_AVAILABILITYZONE $AMI_ID \
                     | awk '/^INSTANCE/ {print $2}'`)
@@ -204,7 +206,7 @@ function runsetup() {
 			done
 
 			# set hosts array
-            hosts=(`ec2-describe-instances --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCE/ {print $4}'`)
+            hosts=(`ec2-describe-instances --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCE/ {print $17}'`)
             echo "all hosts ready"
         else # Amazon probably failed to start a host [*** NOTE this is fairly common ***] so show a msg - TO DO. Could try to replace it with a new one?
             original_count=$countof_instanceids
@@ -214,7 +216,7 @@ function runsetup() {
                                 --filter system-status.reachability=passed \
                                 | awk '/INSTANCE\t/ {print $2}'`)
 
-            hosts=(`ec2-describe-instances --region $REGION ${healthy_instanceids[@]} | awk '/INSTANCE/ {print $4}'`)
+            hosts=(`ec2-describe-instances --region $REGION ${healthy_instanceids[@]} | awk '/INSTANCE/ {print $17}'`)
 
             if [ "${#healthy_instanceids[@]}" -eq 0 ] ; then
                 countof_instanceids=0
@@ -253,6 +255,7 @@ function runsetup() {
         (ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag Owner=$EMAIL)
         (ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag ContactEmail=$EMAIL)
 		(ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag Name="jmeter-ec2-$project")
+		(ec2-create-tags --region $REGION ${attempted_instanceids[@]} --tag cluster="$CLUSTER")
 		wait
         echo "complete"
 		echo
@@ -540,7 +543,7 @@ function runsetup() {
 	    fi
 
 	    # scp jmeter execution file
-	    if [ -r $LOCAL_HOME/jmeter ] ; then # don't try to upload this optional file if it is not present
+	    if [[ -r $LOCAL_HOME/jmeter ]] ; then # don't try to upload this optional file if it is not present
 	        echo -n "jmeter execution file..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
@@ -553,7 +556,7 @@ function runsetup() {
 	    fi
 
 		# scp any custom jar files
-	    if [ -d $LOCAL_HOME/plugins ] && [ -n $(ls $LOCAL_HOME/plugins/) ] ; then # don't try to upload any files if none present
+	    if [[ -d $LOCAL_HOME/plugins  &&  -n $(ls $LOCAL_HOME/plugins/) ]]; then # don't try to upload any files if none present
 	        echo -n "custom jar file(s)..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
@@ -566,7 +569,7 @@ function runsetup() {
 	    fi
 
 	    # scp any project specific custom jar files
-	    if [ -d $project_home/plugins ] && [ -n $(ls $project_home/plugins/) ] ; then # don't try to upload any files if none present
+	    if [[ -d $project_home/plugins  &&  -n $(ls $project_home/plugins/) ]] ; then # don't try to upload any files if none present
 	        echo -n "project specific jar file(s)..."
 	        for host in ${hosts[@]} ; do
 	            (scp -q -C -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
@@ -578,7 +581,7 @@ function runsetup() {
 	        echo -n "done...."
 	    fi
 
-		if [ ! -z "$DB_HOST" ] ; then
+		if [[ ! -z "$DB_HOST" ]] ; then
 			# upload import-results.sh
 		    echo -n "copying import-results.sh to database..."
 		    (scp -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no \
