@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 
 # ========================================================================================
 # jmeter-ec2.sh
@@ -206,7 +206,7 @@ function runsetup() {
 			done
 
 			# set hosts array
-            hosts=(`ec2-describe-instances --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCE/ {print $17}'`)
+            hosts=(`ec2-describe-instances --region $REGION ${attempted_instanceids[@]} | awk '/INSTANCE/ {print $15}'`)
             echo "all hosts ready"
         else # Amazon probably failed to start a host [*** NOTE this is fairly common ***] so show a msg - TO DO. Could try to replace it with a new one?
             original_count=$countof_instanceids
@@ -216,7 +216,7 @@ function runsetup() {
                                 --filter system-status.reachability=passed \
                                 | awk '/INSTANCE\t/ {print $2}'`)
 
-            hosts=(`ec2-describe-instances --region $REGION ${healthy_instanceids[@]} | awk '/INSTANCE/ {print $17}'`)
+            hosts=(`ec2-describe-instances --region $REGION ${healthy_instanceids[@]} | awk '/INSTANCE/ {print $15}'`)
 
             if [ "${#healthy_instanceids[@]}" -eq 0 ] ; then
                 countof_instanceids=0
